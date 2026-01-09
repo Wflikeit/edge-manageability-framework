@@ -150,3 +150,45 @@ attestationstatus-manager:
   {{- end}}
   metrics:
     enabled: {{ index .Values.argo "infra-managers" "enableMetrics" | default false }}
+
+remote-access-manager:
+  serviceArgs:
+    enableTracing: {{ index .Values.argo "infra-managers" "enableTracing" | default false }}
+  traefikReverseProxy:
+    host:
+      grpc:
+        name: Host(`remote-access-node.{{ .Values.argo.clusterDomain }}`)
+{{- if .Values.argo.traefik }}
+    tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
+{{- end }}
+  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" }}
+  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+  resources:
+  {{- with index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+    {{- toYaml . | nindent 4 }}
+  {{- end}}
+  {{- end}}
+  {{- end}}
+  metrics:
+    enabled: {{ index .Values.argo "infra-managers" "enableMetrics" | default false }}
+
+remote-access-proxy:
+  serviceArgs:
+    enableTracing: {{ index .Values.argo "infra-managers" "enableTracing" | default false }}
+  traefikReverseProxy:
+    host:
+      http:
+        name: Host(`remote-access-proxy.{{ .Values.argo.clusterDomain }}`)
+{{- if .Values.argo.traefik }}
+    tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
+{{- end }}
+  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" }}
+  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+  resources:
+  {{- with index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+    {{- toYaml . | nindent 4 }}
+  {{- end}}
+  {{- end}}
+  {{- end}}
+  metrics:
+    enabled: {{ index .Values.argo "infra-managers" "enableMetrics" | default false }}

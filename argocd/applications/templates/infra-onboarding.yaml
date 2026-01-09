@@ -19,9 +19,9 @@ metadata:
 spec:
   project: {{ required "A valid projectName entry required!" .Values.argo.project }}
   sources:
-    - repoURL: {{ required "A valid chartRepoURL entry required!" .Values.argo.chartRepoURL }}
-      chart: infra/charts/{{$appName}}
-      targetRevision: 1.32.3
+    - repoURL: https://github.com/wflikeit/infra-charts
+      targetRevision: introduce-reverse-proxy-func
+      path: {{$appName}}
       helm:
         releaseName: {{$appName}}
         valuesObject:

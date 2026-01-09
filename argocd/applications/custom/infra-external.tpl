@@ -114,3 +114,4 @@ amt:
   {{- if .Values.argo.traefik }}
     tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
   {{- end }}
+.... Inspiracja dla RAP

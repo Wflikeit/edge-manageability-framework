@@ -19,9 +19,9 @@ metadata:
 spec:
   project: {{ required "A valid projectName entry required!" .Values.argo.project }}
   sources:
-    - repoURL: {{ required "A valid chartRepoURL entry required!" .Values.argo.chartRepoURL }}
-      chart: infra/charts/{{$appName}}
-      targetRevision: 2.14.0
+    - repoURL: https://github.com/wflikeit/infra-charts
+      targetRevision: introduce-reverse-proxy-func
+      path: {{$appName}}
       helm:
         releaseName: {{$appName}}
         valuesObject:
@@ -30,7 +30,7 @@ spec:
           {{- $baseFile := printf "configs/%s.yaml" $appName }}
           {{- $baseConfig := .Files.Get $baseFile|fromYaml}}
           {{- $overwrite := (get .Values.postCustomTemplateOverwrite $appName ) | default dict }}
-          {{- mergeOverwrite $baseConfig $customConfig $overwrite | toYaml | nindent 10 }}
+          {{- mergeOverwrite $baseConfig $customConfig $overwrite | toYaml | nindent 10 }}2
   destination:
     namespace: {{$namespace}}
     server: {{ required "A valid targetServer entry required!" .Values.argo.targetServer }}

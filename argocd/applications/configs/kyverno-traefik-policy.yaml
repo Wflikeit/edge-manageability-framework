@@ -37,3 +37,4 @@ anyMiddlewareException:
       - "onboardingmgr-api-grpc-stream"
       - "cluster-connect-gateway-ws"
       - "cluster-connect-gateway-kubeapi"
+      - Dodać dla RAP

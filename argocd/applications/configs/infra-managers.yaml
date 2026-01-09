@@ -103,3 +103,39 @@ attestationstatus-manager:
     enforceMultiTenancy: "true"
   resources: null
 
+remote-access-manager:
+  inventory:
+    addr: inventory.orch-infra.svc.cluster.local
+  image:
+    pullPolicy: IfNotPresent
+  serviceArgs:
+    traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"
+  traefikReverseProxy:
+    enabled: true
+    secretName: "tls-orch"
+    tlsOption: "gateway-tls"
+  oidc:
+    oidc_server_url: "http://platform-keycloak.orch-platform.svc/realms/master"
+  multiTenancy:
+    enforceMultiTenancy: "true"
+  resources: null
+
+
+remote-access-proxy:
+  inventory:
+    addr: inventory.orch-infra.svc.cluster.local
+  image:
+    pullPolicy: IfNotPresent
+  serviceArgs:
+    traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"
+  traefikReverseProxy:
+    enabled: true
+    secretName: "tls-orch"
+    tlsOption: "gateway-tls"
+  oidc:
+    oidc_server_url: "http://platform-keycloak.orch-platform.svc/realms/master"
+  multiTenancy:
+    enforceMultiTenancy: "true"
+  resources: null
+
+

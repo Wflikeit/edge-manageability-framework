@@ -161,10 +161,10 @@ remote-access-manager:
 {{- if .Values.argo.traefik }}
     tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
 {{- end }}
-  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" }}
-  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+  {{- if index .Values.argo "infra-managers" "remote-access-manager" }}
+  {{- if index .Values.argo "infra-managers" "remote-access-manager" "resources" }}
   resources:
-  {{- with index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+  {{- with index .Values.argo "infra-managers" "remote-access-manager" "resources" }}
     {{- toYaml . | nindent 4 }}
   {{- end}}
   {{- end}}
@@ -176,16 +176,18 @@ remote-access-proxy:
   serviceArgs:
     enableTracing: {{ index .Values.argo "infra-managers" "enableTracing" | default false }}
   traefikReverseProxy:
-    host:
-      http:
-        name: Host(`remote-access-proxy.{{ .Values.argo.clusterDomain }}`)
+      host:
+        http:
+          name: Host(`remote-access-proxy.{{ .Values.argo.clusterDomain }}`)
+        ws:
+          name: Host(`remote-access-proxy-ws.{{ .Values.argo.clusterDomain }}`)
 {{- if .Values.argo.traefik }}
     tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
 {{- end }}
-  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" }}
-  {{- if index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+  {{- if index .Values.argo "infra-managers" "remote-access-proxy" }}
+  {{- if index .Values.argo "infra-managers" "remote-access-proxy" "resources" }}
   resources:
-  {{- with index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+  {{- with index .Values.argo "infra-managers" "remote-access-proxy" "resources" }}
     {{- toYaml . | nindent 4 }}
   {{- end}}
   {{- end}}

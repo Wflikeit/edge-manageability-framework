@@ -39,7 +39,7 @@ restrictedPolicyOrch:
       - "dkam*"
       - "rps*" # Added to allow OpenDMT RPC-RPS traffic, which fails due to missing JWT token.
       - "pxe-server*" # Needs host networking and special capabilities, on-prem only.
-      - DODAC DLA RAP
+      - "remote-access-proxy*" # Added to allow RemoteAccessAgent-RemoteAccessProxy, which fails due to missing JWT token.
   - namespace: "capi-operator-system"
     names:
       - "capi-operator-cluster-api-operator*"

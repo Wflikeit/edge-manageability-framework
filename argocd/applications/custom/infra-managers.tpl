@@ -176,11 +176,11 @@ remote-access-proxy:
   serviceArgs:
     enableTracing: {{ index .Values.argo "infra-managers" "enableTracing" | default false }}
   traefikReverseProxy:
-      host:
-        http:
-          name: Host(`remote-access-proxy.{{ .Values.argo.clusterDomain }}`)
-        ws:
-          name: Host(`remote-access-proxy-ws.{{ .Values.argo.clusterDomain }}`)
+    host:
+      http:
+        name: Host(`remote-access-proxy.{{ .Values.argo.clusterDomain }}`)
+      ws:
+        name: Host(`remote-access-proxy-ws.{{ .Values.argo.clusterDomain }}`)
 {{- if .Values.argo.traefik }}
     tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
 {{- end }}

@@ -4,7 +4,11 @@
 
 global:
   registry:
+    {{- if .Values.argo.containerRegistryURL }}
     name: "{{ .Values.argo.containerRegistryURL }}/"
+    {{- else }}
+    name: "registry-rs.edgeorchestration.intel.com/edge-orch/"
+    {{- end }}
     {{- $imagePullSecretsLength := len .Values.argo.imagePullSecrets }}
     {{- if eq $imagePullSecretsLength 0 }}
     imagePullSecrets: []

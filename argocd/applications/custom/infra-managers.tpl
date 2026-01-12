@@ -4,7 +4,7 @@
 
 global:
   registry:
-    {{- if .Values.argo.containerRegistryURL }}
+    {{- if and .Values.argo.containerRegistryURL (ne .Values.argo.containerRegistryURL "") }}
     name: "{{ .Values.argo.containerRegistryURL }}/"
     {{- else }}
     name: "registry-rs.edgeorchestration.intel.com/edge-orch/"

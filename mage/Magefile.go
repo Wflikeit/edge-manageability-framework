@@ -34,7 +34,7 @@ const (
 	kindOrchClusterName      = "kind" // TODO: Keep for backwards compatibility until all Mage is moved to root
 	deploymentTimeoutEnv     = "DEPLOYMENT_TIMEOUT"
 	defaultDeploymentTimeout = "1200s" // timeout must be a valid string
-	argoVersion              = "8.0.0"
+	argoVersion              = "8.2.7"
 	argoRetryCount           = 30
 	argoRetryInterval        = 30
 	giteaVersion             = "10.6.0"
@@ -55,9 +55,8 @@ var argoNamespaces = []string{
 	"orch-infra",    // used when creating a secret for mailpit
 }
 
-// FIXME: Ideally this could be extracted from the cluster configuration and aligned with auth secrets - out of scope for now
-var giteaRepos = []string{
-	"https://gitea-http.gitea.svc.cluster.local/argocd/edge-manageability-framework",
+var EMFRepos = []string{
+	"https://github.com/open-edge-platform/edge-manageability-framework",
 }
 
 // Public GitHub repositories can be useful for specific development workflows.
@@ -393,7 +392,9 @@ func (u Undeploy) OnPrem(ctx context.Context) error {
 
 	// Check if TF_VAR_FILE is defined, if not, set it to a default value
 	if os.Getenv("TF_VAR_FILE") == "" {
-		os.Setenv("TF_VAR_FILE", "terraform.tfvars")
+		if err := os.Setenv("TF_VAR_FILE", "terraform.tfvars"); err != nil {
+			return fmt.Errorf("failed to set TF_VAR_FILE: %w", err)
+		}
 	}
 
 	tfvarsFile := os.Getenv("TF_VAR_FILE")
@@ -474,12 +475,9 @@ func (d Deploy) KindMinimal() error {
 
 // Deploy kind cluster, Argo CD, and Orchestrator services with customized settings.
 func (d Deploy) KindCustom() error {
-	targetEnv, err := Config{}.createCluster()
-	if err != nil {
-		return fmt.Errorf("failed to create cluster: %w", err)
-	}
-
-	return d.all(targetEnv)
+	fmt.Println("Interactive cluster configuration is not currently supported.")
+	fmt.Println("Use config:usePreset with a manually generated preset file until this functionality is supported.")
+	return fmt.Errorf("unsupported")
 }
 
 // Deploy kind cluster, Argo CD, and Orchestrator services with preset settings.
@@ -494,7 +492,10 @@ func (d Deploy) KindPreset(clusterPreset string) error {
 
 // Deploy kind cluster and Argo CD.
 func (d Deploy) Kind(targetEnv string) error {
-	return d.kind(targetEnv)
+	if err := d.kind(targetEnv); err != nil {
+		return err
+	}
+	return d.preOrchDeploy(targetEnv)
 }
 
 func (d Deploy) Gitea(targetEnv string) error {
@@ -796,7 +797,9 @@ func (d Deploy) OnPrem(ctx context.Context) error {
 
 	// Check if TF_VAR_FILE is defined, if not, set it to a default value
 	if os.Getenv("TF_VAR_FILE") == "" {
-		os.Setenv("TF_VAR_FILE", "terraform.tfvars")
+		if err := os.Setenv("TF_VAR_FILE", "terraform.tfvars"); err != nil {
+			return fmt.Errorf("failed to set TF_VAR_FILE: %w", err)
+		}
 	}
 
 	tfvarsFile := os.Getenv("TF_VAR_FILE")
@@ -903,7 +906,11 @@ func (d Deploy) VENWithFlow(ctx context.Context, flow string, serialNumber strin
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			fmt.Printf("Warning: failed to remove temporary directory %s: %v\n", tempDir, err)
+		}
+	}()
 
 	fmt.Printf("Temporary directory created: %s\n", tempDir)
 
@@ -919,7 +926,7 @@ func (d Deploy) VENWithFlow(ctx context.Context, flow string, serialNumber strin
 		return fmt.Errorf("failed to change directory to 'ven': %w", err)
 	}
 
-	if err := sh.RunV("git", "checkout", "pico/1.5.5"); err != nil {
+	if err := sh.RunV("git", "checkout", "pico/1.5.6"); err != nil {
 		return fmt.Errorf("failed to checkout specific commit: %w", err)
 	}
 
@@ -1025,7 +1032,7 @@ STANDALONE=0
 		ProjectApiPassword: password,
 		RamSize:            "8192",
 		NoOfCpus:           "4",
-		SdaDiskSize:        "110G",
+		SdaDiskSize:        "100",
 		LibvirtDriver:      "kvm",
 		UsernameLinux:      "user",
 		PasswordLinux:      "user",
@@ -1072,7 +1079,11 @@ STANDALONE=0
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				fmt.Printf("Warning: failed to close response body: %v\n", err)
+			}
+		}()
 
 		if resp.StatusCode == http.StatusOK {
 			out, err := os.Create(filepath.Join("certs", "Full_server.crt"))
@@ -1080,7 +1091,11 @@ STANDALONE=0
 				fmt.Printf("Failed to create file: %v\n", err)
 				return fmt.Errorf("failed to create file: %w", err)
 			}
-			defer out.Close()
+			defer func() {
+				if err := out.Close(); err != nil {
+					fmt.Printf("Warning: failed to close output file: %v\n", err)
+				}
+			}()
 
 			_, err = io.Copy(out, resp.Body)
 			if err != nil {
@@ -1171,6 +1186,7 @@ STANDALONE=0
 		fmt.Sprintf("-var=tinkerbell_nginx_domain=%s", fmt.Sprintf("tinkerbell-nginx.%s", serviceDomain)),
 		fmt.Sprintf("-var=smbios_serial=%s", serialNumber),
 		fmt.Sprintf("-var=smbios_uuid=%s", ""),
+		fmt.Sprintf("-var=disk_size=%s", data.SdaDiskSize),
 		fmt.Sprintf("-var=libvirt_network_name=%s", data.BridgeName),
 		fmt.Sprintf("-var=libvirt_pool_name=%s", data.PoolName),
 		fmt.Sprintf("-var=vm_console=%s", "file"),
@@ -1203,6 +1219,7 @@ func (d Deploy) OrchLocal(targetEnv string) error {
 	return d.orchLocal(targetEnv)
 }
 
+// OrchCA Saves Orchestrators's CA certificate to `orch-ca.crt` so it can be imported to trust store for web access.
 func (d Deploy) OrchCA() error {
 	return d.orchCA()
 }
@@ -1224,9 +1241,15 @@ func (d Deploy) EdgeCluster(targetEnv string) error {
 		return fmt.Errorf("failed to get api user: %w", err)
 	}
 
-	os.Setenv("ORCH_PROJECT", projectName)
-	os.Setenv("ORCH_ORG", orgName)
-	os.Setenv("ORCH_USER", apiUser)
+	if err := os.Setenv("ORCH_PROJECT", projectName); err != nil {
+		return fmt.Errorf("failed to set ORCH_PROJECT: %w", err)
+	}
+	if err := os.Setenv("ORCH_ORG", orgName); err != nil {
+		return fmt.Errorf("failed to set ORCH_ORG: %w", err)
+	}
+	if err := os.Setenv("ORCH_USER", apiUser); err != nil {
+		return fmt.Errorf("failed to set ORCH_USER: %w", err)
+	}
 
 	projectId, err := projectId(projectName)
 	if err != nil {
@@ -1258,9 +1281,15 @@ func (d Deploy) EdgeClusterWithProject(targetEnv string, orgName string, project
 	edgeMgrUser = edgeInfraUser
 	project = projectName
 
-	os.Setenv("ORCH_PROJECT", projectName)
-	os.Setenv("ORCH_ORG", orgName)
-	os.Setenv("ORCH_USER", apiUser)
+	if err := os.Setenv("ORCH_PROJECT", projectName); err != nil {
+		return fmt.Errorf("failed to set ORCH_PROJECT: %w", err)
+	}
+	if err := os.Setenv("ORCH_ORG", orgName); err != nil {
+		return fmt.Errorf("failed to set ORCH_ORG: %w", err)
+	}
+	if err := os.Setenv("ORCH_USER", apiUser); err != nil {
+		return fmt.Errorf("failed to set ORCH_USER: %w", err)
+	}
 
 	projectId, err := projectId(projectName)
 	if err != nil {
@@ -1291,9 +1320,15 @@ func (d Deploy) EdgeClusterWithLabels(targetEnv string, labels string) error {
 		return fmt.Errorf("failed to get api user: %w", err)
 	}
 
-	os.Setenv("ORCH_PROJECT", projectName)
-	os.Setenv("ORCH_ORG", orgName)
-	os.Setenv("ORCH_USER", apiUser)
+	if err := os.Setenv("ORCH_PROJECT", projectName); err != nil {
+		return fmt.Errorf("failed to set ORCH_PROJECT: %w", err)
+	}
+	if err := os.Setenv("ORCH_ORG", orgName); err != nil {
+		return fmt.Errorf("failed to set ORCH_ORG: %w", err)
+	}
+	if err := os.Setenv("ORCH_USER", apiUser); err != nil {
+		return fmt.Errorf("failed to set ORCH_USER: %w", err)
+	}
 
 	projectId, err := projectId(projectName)
 	if err != nil {
@@ -1833,14 +1868,6 @@ func (g Gen) FirewallDoc() error {
 }
 
 type Config mg.Namespace
-
-func (c Config) CreateCluster() error {
-	_, err := c.createCluster()
-	if err != nil {
-		return fmt.Errorf("failed to create cluster: %w", err)
-	}
-	return nil
-}
 
 // Create a cluster deployment configuration from a cluster values file.
 func (c Config) UsePreset(clusterPresetFile string) error {

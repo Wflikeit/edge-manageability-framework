@@ -48,7 +48,7 @@ func (k Keycloak) SetPassword(password string) {
 
 // Resets the admin keycloak password and restarts keycloak
 func (k Keycloak) ResetPassword() {
-	_, decodedMap := get_postgress_creds()
+	decodedMap, _ := get_postgress_creds()
 	start_local_psql_pod()
 	admin_id := run_sql_command(decodedMap, "SELECT id FROM user_entity where username = '\\'admin\\'';")
 	run_sql_command(decodedMap, "DELETE from user_role_mapping where user_id = '\\'"+admin_id+"\\'';")
@@ -118,7 +118,7 @@ func set_keycloak_password(encoded_password string) {
 }
 
 func start_local_psql_pod() {
-	command := "kubectl run -n " + keycloakNamespace + " keycloak-recovery-psql --image=bitnamilegacy/postgresql -- sh -c 'sleep 10000'"
+	command := "kubectl run -n " + keycloakNamespace + " keycloak-recovery-psql --image=library/postgres:14.19-alpine3.22 -- sh -c 'sleep 10000'"
 	_, err := exec.Command("bash", "-c", command).CombinedOutput()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -178,7 +178,7 @@ func run_sql_command(decodedMap map[string]string, sqlCommand string) string {
 	return sql_output
 }
 
-func get_postgress_creds() (error, map[string]string) {
+func get_postgress_creds() (map[string]string, error) {
 	json_project, _ := exec.Command("kubectl", "get", "secret", "-n", keycloakNamespace, "platform-keycloak-local-postgresql", "-o", "json").CombinedOutput()
 
 	// Create a new map to store decoded values
@@ -187,14 +187,14 @@ func get_postgress_creds() (error, map[string]string) {
 	var data map[string]interface{}
 	if err := json.Unmarshal(json_project, &data); err != nil {
 		fmt.Println("Error unmarshalling JSON:", err)
-		return err, decodedMap
+		return decodedMap, err
 	}
 
 	encodedMap, ok := data["data"].(map[string]interface{})
 	if !ok {
 		fmt.Println("Error: data['data'] is not of type map[string]interface{}")
 		fmt.Println(data["data"])
-		return nil, decodedMap
+		return decodedMap, nil
 	}
 	// Function to decode base64 strings
 	decodeBase64 := func(encoded string) (string, error) {
@@ -226,5 +226,5 @@ func get_postgress_creds() (error, map[string]string) {
 	}
 
 	// fmt.Println(decodedMap["PGDATABASE"])
-	return nil, decodedMap
+	return decodedMap, nil
 }

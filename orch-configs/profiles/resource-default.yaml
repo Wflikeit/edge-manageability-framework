@@ -308,13 +308,6 @@ argo:
             limits:
               cpu: "64"
               memory: "64Gi"
-    interconnectManager:
-      requests:
-        cpu: "1m"
-        memory: "1Mi"
-      limits:
-        cpu: "64"
-        memory: "64Gi"
     istiod:
       global:
         proxy:
@@ -387,6 +380,13 @@ argo:
         requests:
           cpu: "1m"
           memory: "1Mi"
+        limits:
+          cpu: "64"
+          memory: "64Gi"
+      cluster:
+        requests:
+          cpu: "1m"
+          memory: "256Mi"
         limits:
           cpu: "64"
           memory: "64Gi"

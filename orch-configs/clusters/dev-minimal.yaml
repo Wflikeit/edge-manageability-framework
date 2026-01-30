@@ -16,7 +16,6 @@ root:
     - orch-configs/profiles/proxy-none.yaml
     - orch-configs/profiles/profile-dev.yaml
     - orch-configs/profiles/artifact-rs-production-noauth.yaml
-    - orch-configs/profiles/enable-osrm-manual-mode.yaml
     - orch-configs/profiles/resource-default.yaml
     - orch-configs/clusters/dev-minimal.yaml
 
@@ -32,7 +31,7 @@ argo:
   clusterDomain: kind.internal
 
   ## Argo CD configs
-  deployRepoURL: "https://gitea-http.gitea.svc.cluster.local/argocd/edge-manageability-framework"
+  deployRepoURL: "https://github.com/open-edge-platform/edge-manageability-framework"
   deployRepoRevision: main
 
   targetServer: "https://kubernetes.default.svc"

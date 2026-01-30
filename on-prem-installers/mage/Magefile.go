@@ -22,26 +22,6 @@ import (
 )
 
 const (
-	// RKE2 related constants.
-	rke2Version                    = "v1.30.10+rke2r1"
-	rke2ImagesPkg                  = "rke2.linux-amd64.tar.gz"
-	rke2LibPkg                     = "rke2-images.linux-amd64.tar.zst"
-	rke2CalicoLibPkg               = "rke2-images-calico.linux-amd64.tar.zst"
-	rke2LibSHAFile                 = "sha256sum-amd64.txt"
-	openEbsOperatorK8sTemplateFile = "openebs-operator.yaml"
-	rke2ArtifactDownloadPath       = "assets/rke2"
-	rke2CustomImageDownloadPath    = "assets/rke2/offline-images/"
-	rke2ImagesURLFmt               = "https://github.com/rancher/rke2/releases/download/%s/rke2.linux-amd64.tar.gz"
-	//nolint: all
-	rke2LibURLFmt = "https://github.com/rancher/rke2/releases/download/%s/rke2-images.linux-amd64.tar.zst"
-
-	//nolint: all
-	rke2CNICalicoURLFmt = "https://github.com/rancher/rke2/releases/download/%s/rke2-images-calico.linux-amd64.tar.zst"
-	//nolint: all
-	openEbsOperatorK8sTemplate = "https://raw.githubusercontent.com/openebs/charts/gh-pages/versioned/3.9.0/openebs-operator.yaml"
-	//nolint: all
-	openEbsHostPathStorageK8sTemplate = "https://raw.githubusercontent.com/openebs/dynamic-localpv-provisioner/refs/heads/release/4.2/deploy/kubectl/hostpath-operator.yaml"
-
 	deploymentTimeoutEnv     = "DEPLOYMENT_TIMEOUT"
 	defaultDeploymentTimeout = "1200s" // timeout must be a valid string
 )
@@ -340,9 +320,29 @@ func (Publish) Files(ctx context.Context) error {
 
 	fmt.Println("Pushing to registry:", artifactName)
 
-	matches, err := filepath.Glob(filepath.Join("onprem", "*.sh"))
+	// Copy generate_cluster_yaml.sh from ../installer to onprem folder
+	srcFile := filepath.Join("..", "installer", "generate_cluster_yaml.sh")
+	dstFile := filepath.Join("onprem", "generate_cluster_yaml.sh")
+
+	srcData, err := os.ReadFile(srcFile)
 	if err != nil {
-		return fmt.Errorf("failed to list .sh files: %w", err)
+		return fmt.Errorf("failed to read source file %s: %w", srcFile, err)
+	}
+
+	if err := os.WriteFile(dstFile, srcData, 0o644); err != nil {
+		return fmt.Errorf("failed to write destination file %s: %w", dstFile, err)
+	}
+
+	fmt.Printf("Copied %s to %s\n", srcFile, dstFile)
+
+	// Collect all .sh, .env, and .tpl files from onprem directory
+	var matches []string
+	for _, pattern := range []string{"*.sh", "*.env", "*.tpl"} {
+		files, err := filepath.Glob(filepath.Join("onprem", pattern))
+		if err != nil {
+			return fmt.Errorf("failed to list %s files: %w", pattern, err)
+		}
+		matches = append(matches, files...)
 	}
 
 	// Strip onprem from file paths since oras push requires the file name only or the artifact will include the entire
@@ -373,6 +373,11 @@ func (Publish) Files(ctx context.Context) error {
 		return fmt.Errorf("failed to push to registry: %w: %s", err, string(stdouterr))
 	}
 	fmt.Printf("All files pushed to the registry ✅\n")
+
+	// delete the copied file
+	if err := os.Remove(dstFile); err != nil {
+		return fmt.Errorf("failed to delete copied file %s: %w", dstFile, err)
+	}
 
 	return nil
 }
@@ -410,14 +415,26 @@ func (Gen) IntelSHA256PrivateRootCertChain() error {
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
-	defer os.Remove(file.Name())
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Warning: failed to close file: %v\n", err)
+		}
+	}()
+	defer func() {
+		if err := os.Remove(file.Name()); err != nil {
+			fmt.Printf("Warning: failed to remove file %s: %v\n", file.Name(), err)
+		}
+	}()
 
 	resp, err := http.Get("https://certificates.intel.com/repository/certificates/IntelSHA2RootChain-Base64.zip")
 	if err != nil {
 		return fmt.Errorf("failed to get response: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Warning: failed to close response body: %v\n", err)
+		}
+	}()
 
 	if _, err = io.Copy(file, resp.Body); err != nil {
 		return fmt.Errorf("failed to copy response body: %w", err)

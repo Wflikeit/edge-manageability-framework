@@ -89,7 +89,7 @@ func getHosts(token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -146,7 +146,7 @@ func checkClusterStatus(token string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -200,7 +200,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 
 			resp, err := makeAuthorizedRequest(http.MethodPost, url, *edgeInfraToken, []byte(data), cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 			body, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
@@ -221,7 +221,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 
 			resp, err := makeAuthorizedRequest(http.MethodPost, url, *edgeInfraToken, []byte(data), cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 			body, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
@@ -286,7 +286,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 
 			resp, err := makeAuthorizedRequest(http.MethodPatch, url, *edgeInfraToken, []byte(data), cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			Expect(resp.StatusCode).To(Or(Equal(http.StatusOK), Equal(http.StatusCreated)))
 			fmt.Printf("Host updated successfully with hostID=%s\n", hostID)
@@ -299,7 +299,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 		It("should check that cluster templates are loaded", func() {
 			resp, err := makeAuthorizedRequest(http.MethodGet, url, *edgeMgrToken, nil, cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			body, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
@@ -325,7 +325,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 			url := fmt.Sprintf(clusterApiBaseURLTemplate+"/templates?default=true", serviceDomain, project)
 			resp, err := makeAuthorizedRequest(http.MethodGet, url, *edgeMgrToken, nil, cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			body, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
@@ -353,7 +353,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 			url := fmt.Sprintf(apiBaseURLTemplate+"/appdeployment/deployments?offset=0&pageSize=10", serviceDomain, project)
 			resp, err := makeAuthorizedRequest(http.MethodGet, url, *edgeMgrToken, nil, cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			body, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
@@ -368,7 +368,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 				url := fmt.Sprintf(apiBaseURLTemplate+"/appdeployment/deployments/%s", serviceDomain, project, *deployment.DeployId)
 				resp, err := makeAuthorizedRequest(http.MethodDelete, url, *edgeMgrToken, nil, cli)
 				Expect(err).ToNot(HaveOccurred())
-				defer resp.Body.Close()
+				defer resp.Body.Close() //nolint:errcheck
 				Expect(resp.StatusCode).To(Or(Equal(http.StatusOK), Equal(http.StatusNoContent)), fmt.Sprintf("Failed to delete deployment %s, HTTP status code: %d", *deployment.DeployId, resp.StatusCode))
 				fmt.Printf("Deployment %s (%s) has been successfully deleted.\n", *deployment.Name, *deployment.DeployId)
 			}
@@ -394,7 +394,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp).ToNot(BeNil())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 			Expect(resp.StatusCode).To(Equal(http.StatusCreated))
 			fmt.Printf("Cluster created successfully with regionID=%s, siteID=%s, templateName=%s, uuid=%s\n", regionID, siteID, defaultTemplate, nodeUUID)
 		})
@@ -434,6 +434,25 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 		})
 	})
 
+	Describe("Download Kubeconfig", Label(clusterOrchSmoke), func() {
+		It("should download kubeconfig successfully", func() {
+			Expect(clusterName).ToNot(BeEmpty(), "Cluster name should not be empty")
+
+			// download kubeconfig
+			url := fmt.Sprintf(clusterApiBaseURLTemplate+"/clusters/%s/kubeconfigs", serviceDomain, project, clusterName)
+			resp, err := makeAuthorizedRequest(http.MethodGet, url, *edgeMgrToken, nil, cli)
+			Expect(err).ToNot(HaveOccurred())
+			defer resp.Body.Close() //nolint:errcheck
+
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+			// check kubeconfig content not empty and readable
+			body, err := io.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(body).ToNot(BeEmpty(), "Kubeconfig should not be empty")
+		})
+	})
+
 	Describe("Attempt to Delete Cluster Template in Use", Label(clusterOrchSmoke), func() {
 		It("should fail to delete the cluster template while it is in use", func() {
 			Expect(defaultTemplateName).ToNot(BeEmpty(), "Default template name should not be empty")
@@ -443,7 +462,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 			url := fmt.Sprintf(clusterApiBaseURLTemplate+"/templates/%s/versions/%s", serviceDomain, project, defaultTemplateName, defaultTemplateVersion)
 			resp, err := makeAuthorizedRequest(http.MethodDelete, url, *edgeMgrToken, nil, cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			body, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
@@ -463,7 +482,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 			// Initiate the GET request using makeAuthorizedRequest
 			resp, err := makeAuthorizedRequest(http.MethodGet, url, *edgeMgrToken, nil, cli)
 			Expect(err).ToNot(HaveOccurred())
-			defer resp.Body.Close()
+			defer resp.Body.Close() //nolint:errcheck
 
 			// Expect 200 OK response
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
@@ -503,7 +522,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 				url := fmt.Sprintf(clusterApiBaseURLTemplate+"/clusters/%s", serviceDomain, project, clusterName)
 				resp, err := makeAuthorizedRequest(http.MethodDelete, url, *edgeMgrToken, nil, cli)
 				Expect(err).ToNot(HaveOccurred())
-				defer resp.Body.Close()
+				defer resp.Body.Close() //nolint:errcheck
 				Expect(resp.StatusCode).To(Equal(http.StatusNoContent))
 				fmt.Printf("Cluster deleted successfully with clusterName=%s\n", clusterName)
 
@@ -513,7 +532,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 					if err != nil {
 						return false, err
 					}
-					defer resp.Body.Close()
+					defer resp.Body.Close() //nolint:errcheck
 					body, err := io.ReadAll(resp.Body)
 					if err != nil {
 						return false, err
@@ -551,7 +570,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 				url := fmt.Sprintf(apiBaseURLTemplate+"/compute/instances/%s", serviceDomain, project, instanceID)
 				resp, err := makeAuthorizedRequest(http.MethodDelete, url, *edgeInfraToken, nil, cli)
 				Expect(err).ToNot(HaveOccurred(), "creating new HTTP request")
-				defer resp.Body.Close()
+				defer resp.Body.Close() //nolint:errcheck
 				Expect(resp.StatusCode).To(Or(Equal(http.StatusOK), Equal(http.StatusNoContent)), fmt.Sprintf("Failed to delete instance %s, HTTP status code: %d", instanceID, resp.StatusCode))
 				fmt.Printf("Instance %s has been successfully deleted.\n", instanceID)
 			} else {
@@ -563,7 +582,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 				url := fmt.Sprintf(apiBaseURLTemplate+"/compute/hosts/%s", serviceDomain, project, hostID)
 				resp, err := makeAuthorizedRequest(http.MethodDelete, url, *edgeInfraToken, nil, cli)
 				Expect(err).ToNot(HaveOccurred(), "creating new HTTP request")
-				defer resp.Body.Close()
+				defer resp.Body.Close() //nolint:errcheck
 				Expect(resp.StatusCode).To(Or(Equal(http.StatusOK), Equal(http.StatusNoContent)), fmt.Sprintf("Failed to delete host %s, HTTP status code: %d", hostID, resp.StatusCode))
 				fmt.Printf("Host %s has been successfully deleted.\n", hostID)
 			} else {
@@ -583,7 +602,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 						fmt.Printf("Error creating new HTTP request: %v\n", err)
 						return false
 					}
-					defer resp.Body.Close()
+					defer resp.Body.Close() //nolint:errcheck
 
 					if resp.StatusCode == http.StatusBadRequest {
 						fmt.Printf("Site %s not found, it may have already been deleted.\n", siteID)
@@ -614,7 +633,7 @@ var _ = Describe("Cluster Orch Smoke Test", Ordered, Label(clusterOrchSmoke), fu
 						fmt.Printf("Error creating new HTTP request: %v\n", err)
 						return false
 					}
-					defer resp.Body.Close()
+					defer resp.Body.Close() //nolint:errcheck
 
 					if resp.StatusCode == http.StatusBadRequest {
 						fmt.Printf("Region %s not found, it may have already been deleted.\n", regionID)

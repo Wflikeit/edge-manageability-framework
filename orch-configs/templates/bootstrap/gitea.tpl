@@ -8,6 +8,7 @@ image:
 {{- end }}
   pullPolicy: IfNotPresent
   rootless: true
+  tag: 1.25.1
 containerSecurityContext:
   allowPrivilegeEscalation: false
   capabilities:
@@ -22,8 +23,8 @@ postgresql:
   enabled: true
   image:
     registry: docker.io
-    repository: bitnamilegacy/postgresql
-    tag: 16.3.0-debian-12-r23
+    repository: library/postgres
+    tag: 16.10-bookworm
   primary:
     resourcesPreset: none
     resource: {}
@@ -34,6 +35,12 @@ postgresql:
           - ALL
       seccompProfile:
         type: RuntimeDefault
+    extraVolumeMounts:
+    - name: postgresql-run
+      mountPath: /var/run
+    extraVolumes:
+    - name: postgresql-run
+      emptyDir: {}
   persistence:
     size: 1Gi
   containerSecurityContext:
@@ -50,8 +57,8 @@ redis:
   enabled: true
   image:
     registry: docker.io
-    repository: bitnamilegacy/redis
-    tag: 7.2.5-debian-12-r4  
+    repository: library/redis
+    tag: 7.2.11
   master:
     resourcesPreset: none
     resources: {}
@@ -70,6 +77,8 @@ service:
     type: LoadBalancer
     port: 443
 gitea:
+  startupProbe:
+    enabled: true
   config:
     server:
       APP_DATA_PATH: /data

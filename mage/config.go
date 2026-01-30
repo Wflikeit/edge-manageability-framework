@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -22,6 +23,8 @@ var (
 		"targetCluster":       "kind",
 		"clusterDomain":       serviceDomain,
 		"argoServiceType":     "LoadBalancer",
+		"enableAppOrch":       true,
+		"enableClusterOrch":   true,
 		"enableObservability": true,
 		"enableAuditLogging":  false,
 		"enableKyverno":       true,
@@ -33,26 +36,10 @@ var (
 		"enableMailpit":       false,
 		"dockerCache":         "",
 		"dockerCacheCert":     "",
-		"deployRepoURL":       "https://gitea-http.gitea.svc.cluster.local/argocd/edge-manageability-framework",
+		"deployRepoURL":       "https://github.com/open-edge-platform/edge-manageability-framework",
+		"deployRepoRevision":  "main",
 	}
 )
-
-func (c Config) createCluster() (string, error) {
-	fmt.Println("Interactive cluster configuration is not currently supported.")
-	fmt.Println("Use config:usePreset with a manually generated preset file until this functionality is supported.")
-
-	// TBD: Implement interactive queryClusterPresetSettings interface
-	// clusterSettings, err := queryClusterPresetSettings()
-	// if err != nil {
-	// 	return "", fmt.Errorf("invalid cluster settings: %w", err)
-	// }
-
-	// Render the cluster deployment configuration template.
-	// clusterName, err := renderClusterTemplate(clusterSettings)
-	// return clusterName, nil
-
-	return "", nil
-}
 
 // writeMapAsYAML writes a map[string]interface{} as a YAML string.
 func writeMapAsYAML(data map[string]interface{}) (string, error) {
@@ -136,11 +123,78 @@ func parseClusterValues(clusterConfigPath string) (map[string]interface{}, error
 		return nil, fmt.Errorf("invalid cluster definition: 'root' key is missing in the configuration")
 	}
 
+	// merge the cluster template into itself
+	var fileValues map[string]interface{}
+	if err := yaml.Unmarshal(data, &fileValues); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal cluster template: %w", err)
+	}
+	if root, ok := fileValues["root"].(map[string]interface{}); ok {
+		delete(root, "clusterValues")
+	}
+	deepMerge(clusterValues, fileValues)
+
 	return clusterValues, nil
 }
 
-// Create a cluster deployment configuration from a cluster values file.
-func (Config) usePreset(clusterPresetFile string) (string, error) {
+func (Config) overrideFromEnvironment(presetData map[string]interface{}) error {
+	// DISABLE_AO_PROFILE, DISABLE_CO_PROFILE, DISABLE_O11Y_PROFILE environment
+	// variables may be used to disable specific subsystems. These environment variable
+	// names are chosen to maintain parity with the AWS and OnPrem installer environment
+	// variable names.
+	//
+	// Note that these are only use when using presents, i.e. "mage deploy:kindPreset".
+	// The "mage deploy:Kind" and "deploy: KindMinimal" targets do not use presets and
+	// are not affected by these environment variables.
+
+	var err error
+	var disableAO bool
+	disableAOStr := os.Getenv("DISABLE_AO_PROFILE")
+	if disableAOStr != "" {
+		disableAO, err = strconv.ParseBool(disableAOStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse DISABLE_AO_PROFILE environment variable: %w", err)
+		}
+	}
+	if disableAO {
+		presetData["enableAppOrch"] = false
+	}
+
+	var disableCO bool
+	disableCOStr := os.Getenv("DISABLE_CO_PROFILE")
+	if disableCOStr != "" {
+		disableCO, err = strconv.ParseBool(disableCOStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse DISABLE_CO_PROFILE environment variable: %w", err)
+		}
+	}
+	if disableCO {
+		presetData["enableClusterOrch"] = false
+		presetData["enableAppOrch"] = false
+	}
+
+	var disableO11y bool
+	disableO11yStr := os.Getenv("DISABLE_O11Y_PROFILE")
+	if disableO11yStr != "" {
+		disableO11y, err = strconv.ParseBool(disableO11yStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse DISABLE_O11Y_PROFILE environment variable: %w", err)
+		}
+	}
+	if disableO11y {
+		presetData["enableObservability"] = false
+	}
+
+	// Override deployRepoRevision from environment variable if set
+	deployRepoRevision := os.Getenv("DEPLOY_REPO_BRANCH")
+	if deployRepoRevision != "" {
+		presetData["deployRepoRevision"] = deployRepoRevision
+	}
+
+	return nil
+}
+
+// Create a cluster deployment configuration from a cluster template and a preset file.
+func (c Config) usePreset(clusterPresetFile string) (string, error) {
 	clusterValues, err := os.ReadFile(clusterPresetFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read cluster preset file: %w", err)
@@ -162,6 +216,11 @@ func (Config) usePreset(clusterPresetFile string) (string, error) {
 	if proxyProfile, ok := presetData["proxyProfile"].(string); ok && proxyProfile != "" {
 		proxyProfilePath := fmt.Sprintf("%s/%s", filepath.Dir(clusterPresetFile), proxyProfile)
 		presetData["proxyProfile"] = proxyProfilePath
+	}
+
+	err = c.overrideFromEnvironment(presetData)
+	if err != nil {
+		return "", fmt.Errorf("failed to override preset data from environment: %w", err)
 	}
 
 	var clusterName string
@@ -191,13 +250,18 @@ func renderClusterTemplate(presetData map[string]interface{}) (string, error) {
 	} else {
 		fmt.Printf("Cluster values file created: %s\n", outputPath)
 	}
-	defer outputFile.Close()
+	defer func() {
+		if err := outputFile.Close(); err != nil {
+			fmt.Printf("Warning: failed to close output file %s: %v\n", outputPath, err)
+		}
+	}()
 
 	clusterTemplatePath := "orch-configs/templates/cluster.tpl"
 	if err := renderTemplate(clusterTemplatePath, presetDataValues, outputFile); err != nil {
 		return "", fmt.Errorf("failed to render cluster template: %w", err)
 	}
 
+	var proxyProfilePath string
 	if proxyProfile, ok := presetData["proxyProfile"].(string); ok && proxyProfile != "" {
 		proxyValuesData, err := os.ReadFile(proxyProfile)
 		if err != nil {
@@ -222,7 +286,11 @@ func renderClusterTemplate(presetData map[string]interface{}) (string, error) {
 		} else {
 			fmt.Printf("Proxy profile file created: %s\n", proxyOutputPath)
 		}
-		defer proxyOutputFile.Close()
+		defer func() {
+			if err := proxyOutputFile.Close(); err != nil {
+				fmt.Printf("Warning: failed to close proxy output file %s: %v\n", proxyOutputPath, err)
+			}
+		}()
 
 		proxyValues := map[string]interface{}{
 			"Values": proxyData,
@@ -231,6 +299,40 @@ func renderClusterTemplate(presetData map[string]interface{}) (string, error) {
 		if err := proxyTmpl.Execute(proxyOutputFile, proxyValues); err != nil {
 			return "", fmt.Errorf("failed to render proxy template: %w", err)
 		}
+
+		proxyProfilePath = proxyOutputPath
+	} else {
+		proxyProfilePath = "orch-configs/profiles/proxy-none.yaml"
+	}
+
+	// Merge the generated cluster values file with the proxy profile values file.
+	clusterValuesData, err := os.ReadFile(outputPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read cluster values file '%s': %w", outputPath, err)
+	}
+	proxyValuesData, err := os.ReadFile(proxyProfilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read proxy profile file '%s': %w", proxyProfilePath, err)
+	}
+
+	var clusterValues map[string]interface{}
+	if err := yaml.Unmarshal(clusterValuesData, &clusterValues); err != nil {
+		return "", fmt.Errorf("failed to unmarshal cluster values: %w", err)
+	}
+	var proxyValues map[string]interface{}
+	if err := yaml.Unmarshal(proxyValuesData, &proxyValues); err != nil {
+		return "", fmt.Errorf("failed to unmarshal proxy values: %w", err)
+	}
+
+	deepMerge(clusterValues, proxyValues)
+
+	mergedYaml, err := writeMapAsYAML(clusterValues)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal merged values: %w", err)
+	}
+
+	if err := os.WriteFile(outputPath, []byte(mergedYaml), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write merged values to file: %w", err)
 	}
 
 	return clusterName, nil
@@ -361,6 +463,7 @@ func (Config) getTargetValues(targetEnv string) (map[string]interface{}, error) 
 	}
 
 	clusterFilePath := fmt.Sprintf("orch-configs/clusters/%s.yaml", targetEnv)
+	fmt.Printf("Loading cluster values from: %s\n", clusterFilePath)
 	targetValues, err := parseClusterValues(clusterFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse cluster values: %w", err)
@@ -433,6 +536,39 @@ func (c Config) isMailpitEnabled(targetEnv string) (bool, error) {
 	return enableMailpit, nil
 }
 
+func (c Config) isAOEnabled(targetEnv string) (bool, error) {
+	if targetEnv == "" {
+		return false, fmt.Errorf("target environment is not specified")
+	}
+
+	clusterFilePath := fmt.Sprintf("orch-configs/clusters/%s.yaml", targetEnv)
+	fmt.Printf("Loading cluster values from: %s\n", clusterFilePath)
+
+	data, err := os.ReadFile(clusterFilePath)
+	if err != nil {
+		return false, fmt.Errorf("failed to read cluster configuration file: %w", err)
+	}
+
+	var rootConfig map[string]interface{}
+	if err := yaml.Unmarshal(data, &rootConfig); err != nil {
+		return false, fmt.Errorf("failed to unmarshal cluster configuration: %w", err)
+	}
+
+	if root, ok := rootConfig["root"].(map[string]interface{}); ok {
+		if clusterValuesPaths, ok := root["clusterValues"].([]interface{}); ok {
+			for _, path := range clusterValuesPaths {
+				if pathStr, ok := path.(string); ok {
+					if strings.Contains(pathStr, "enable-app-orch.yaml") {
+						return true, nil
+					}
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
 func (c Config) getDockerCache(targetEnv string) (string, error) {
 	clusterValues, err := c.getTargetValues(targetEnv)
 	if err != nil {
@@ -493,7 +629,11 @@ func (c Config) renderTargetConfigTemplate(targetEnv string, templatePath string
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outputFile.Close()
+	defer func() {
+		if err := outputFile.Close(); err != nil {
+			fmt.Printf("Warning: failed to close output file %s: %v\n", outputPath, err)
+		}
+	}()
 	if err := tmpl.Execute(outputFile, templateValues); err != nil {
 		return fmt.Errorf("failed to render template: %w", err)
 	}

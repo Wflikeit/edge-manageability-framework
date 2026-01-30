@@ -101,7 +101,6 @@ createGiteaAccount() {
     kubectl exec -n gitea "$giteaPod" -c gitea -- gitea admin user change-password --username "$accountName" --password "$password" --must-change-password=false
   fi
 
-  echo "No Gitea pods found. Exiting."
   userToken=$(kubectl exec -n gitea "$giteaPod" -c gitea -- gitea admin user generate-access-token --scopes write:repository,write:user --username "$accountName" --token-name "${accountName}-$(date +%s)")
   token=$(echo "$userToken" | awk '{print $NF}')
   kubectl create secret generic gitea-"$accountName"-token -n gitea --from-literal=token="$token" --dry-run=client -o yaml | kubectl apply -f -
@@ -123,6 +122,9 @@ createGiteaSecret "gitea-cred" "gitea_admin" "$adminGiteaPassword" "gitea"
 createGiteaSecret "argocd-gitea-credential" "argocd" "$argocdGiteaPassword" "gitea"
 createGiteaSecret "app-gitea-credential" "apporch" "$appGiteaPassword" "orch-platform"
 createGiteaSecret "cluster-gitea-credential" "clusterorch" "$clusterGiteaPassword" "orch-platform"
+
+# Need to scale down the pod
+kubectl scale deployment gitea -n gitea --replicas=0
 
 # More helm values are set in ../assets/gitea/values.yaml
 helm upgrade --install gitea /tmp/gitea/gitea --values /tmp/gitea/values.yaml --set gitea.admin.existingSecret=gitea-cred --set image.registry="${IMAGE_REGISTRY}" -n gitea --timeout 15m0s --wait

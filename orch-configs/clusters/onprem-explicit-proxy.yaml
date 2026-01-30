@@ -22,7 +22,6 @@ root:
     - orch-configs/profiles/artifact-rs-production-noauth.yaml
     - orch-configs/profiles/o11y-onprem.yaml
     - orch-configs/profiles/enable-explicit-proxy.yaml
-    - orch-configs/profiles/enable-osrm-manual-mode.yaml
     - orch-configs/profiles/resource-default.yaml
     - orch-configs/clusters/onprem-explicit-proxy.yaml
 
@@ -38,9 +37,9 @@ argo:
   clusterDomain: cluster.onprem
 
   ## Argo CD configs
-  utilsRepoURL: "https://gitea-http.gitea.svc.cluster.local/argocd/orch-utils"
+  utilsRepoURL: "https://github.com/open-edge-platform/orch-utils"
   utilsRepoRevision: main
-  deployRepoURL: "https://gitea-http.gitea.svc.cluster.local/argocd/edge-manageability-framework"
+  deployRepoURL: "https://github.com/open-edge-platform/edge-manageability-framework"
   deployRepoRevision: main
 
   targetServer: "https://kubernetes.default.svc"

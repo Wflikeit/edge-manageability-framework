@@ -117,7 +117,7 @@ remote-access-manager:
   image:
     pullPolicy: IfNotPresent
     registry:
-      name: "wflikeit/ins/"
+      name: "wflikeit/"
       imagePullSecrets: []
   serviceArgs:
     traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"
@@ -138,7 +138,7 @@ remote-access-proxy:
   image:
     pullPolicy: IfNotPresent
     registry:
-      name: "wflikeit/ins/"
+      name: "wflikeit/"
       imagePullSecrets: []
   serviceArgs:
     traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"

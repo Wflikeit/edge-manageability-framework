@@ -116,6 +116,9 @@ remote-access-manager:
     addr: inventory.orch-infra.svc.cluster.local
   image:
     pullPolicy: IfNotPresent
+    registry:
+      name: "wflikeit/ins:rmtaccessmgr-0.0.1"
+      imagePullSecrets: []
   serviceArgs:
     traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"
   traefikReverseProxy:
@@ -134,6 +137,9 @@ remote-access-proxy:
     addr: inventory.orch-infra.svc.cluster.local
   image:
     pullPolicy: IfNotPresent
+    registry:
+      name: "wflikeit/ins:rmtaccessproxy-0.0.1"
+      imagePullSecrets: []
   serviceArgs:
     traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"
   traefikReverseProxy:

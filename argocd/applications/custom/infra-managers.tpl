@@ -4,7 +4,7 @@
 
 global:
   registry:
-    name: "{{ .Values.argo.containerRegistryURL }}/"
+    name: "registry-rs.edgeorchestration.intel.com/edge-orch/"
     {{- $imagePullSecretsLength := len .Values.argo.imagePullSecrets }}
     {{- if eq $imagePullSecretsLength 0 }}
     imagePullSecrets: []
@@ -144,6 +144,50 @@ attestationstatus-manager:
   {{- if index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
   resources:
   {{- with index .Values.argo "infra-managers" "attestationstatus-manager" "resources" }}
+    {{- toYaml . | nindent 4 }}
+  {{- end}}
+  {{- end}}
+  {{- end}}
+  metrics:
+    enabled: {{ index .Values.argo "infra-managers" "enableMetrics" | default false }}
+
+remote-access-manager:
+  serviceArgs:
+    enableTracing: {{ index .Values.argo "infra-managers" "enableTracing" | default false }}
+  traefikReverseProxy:
+    host:
+      grpc:
+        name: Host(`remote-access-node.{{ .Values.argo.clusterDomain }}`)
+{{- if .Values.argo.traefik }}
+    tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
+{{- end }}
+  {{- if index .Values.argo "infra-managers" "remote-access-manager" }}
+  {{- if index .Values.argo "infra-managers" "remote-access-manager" "resources" }}
+  resources:
+  {{- with index .Values.argo "infra-managers" "remote-access-manager" "resources" }}
+    {{- toYaml . | nindent 4 }}
+  {{- end}}
+  {{- end}}
+  {{- end}}
+  metrics:
+    enabled: {{ index .Values.argo "infra-managers" "enableMetrics" | default false }}
+
+remote-access-proxy:
+  serviceArgs:
+    enableTracing: {{ index .Values.argo "infra-managers" "enableTracing" | default false }}
+  traefikReverseProxy:
+    host:
+      http:
+        name: Host(`remote-access-proxy.{{ .Values.argo.clusterDomain }}`)
+      ws:
+        name: Host(`remote-access-proxy-ws.{{ .Values.argo.clusterDomain }}`)
+{{- if .Values.argo.traefik }}
+    tlsOption: {{ .Values.argo.traefik.tlsOption | default "" | quote }}
+{{- end }}
+  {{- if index .Values.argo "infra-managers" "remote-access-proxy" }}
+  {{- if index .Values.argo "infra-managers" "remote-access-proxy" "resources" }}
+  resources:
+  {{- with index .Values.argo "infra-managers" "remote-access-proxy" "resources" }}
     {{- toYaml . | nindent 4 }}
   {{- end}}
   {{- end}}

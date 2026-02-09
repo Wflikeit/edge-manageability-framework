@@ -14,6 +14,7 @@ root:
     - orch-configs/profiles/enable-dev.yaml
     # proxy group should be specified as the first post-"enable" profile
     - orch-configs/profiles/proxy-none.yaml
+    - orch-configs/profiles/enable-kyverno.yaml
     - orch-configs/profiles/profile-dev.yaml
     - orch-configs/profiles/artifact-rs-production-noauth.yaml
     - orch-configs/profiles/resource-default.yaml
@@ -31,8 +32,10 @@ argo:
   clusterDomain: kind.internal
 
   ## Argo CD configs
-  deployRepoURL: "https://github.com/open-edge-platform/edge-manageability-framework"
-  deployRepoRevision: main
+ # deployRepoURL: "https://github.com/open-edge-platform/edge-manageability-framework"
+#  deployRepoRevision: main
+  deployRepoURL: "https://github.com/wflikeit/edge-manageability-framework"
+  deployRepoRevision: proposal-reverse-proxy-to-edge-devices
 
   targetServer: "https://kubernetes.default.svc"
   autosync: true
@@ -66,3 +69,12 @@ postCustomTemplateOverwrite:
     logs:
       general:
         level: DEBUG
+#  infra-managers:
+#    # Disable ClusterPolicy for MPS/RPS in dev-minimal (Kyverno is disabled)
+#    amt:
+#      mps:
+#        clusterPolicy:
+#          enabled: false
+#      rps:
+#        clusterPolicy:
+#          enabled: false

@@ -127,6 +127,8 @@ remote-access-manager:
   multiTenancy:
     enforceMultiTenancy: "true"
   resources: null
+  traefikApiGroup: "traefik.io/v1alpha1"
+
 
 
 remote-access-proxy:
@@ -145,5 +147,7 @@ remote-access-proxy:
   multiTenancy:
     enforceMultiTenancy: "true"
   resources: null
+  traefikApiGroup: "traefik.io/v1alpha1"
+
 
 

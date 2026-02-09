@@ -129,8 +129,6 @@ remote-access-manager:
   resources: null
   traefikApiGroup: "traefik.io/v1alpha1"
 
-
-
 remote-access-proxy:
   inventory:
     addr: inventory.orch-infra.svc.cluster.local

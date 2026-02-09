@@ -115,6 +115,8 @@ remote-access-manager:
   inventory:
     addr: inventory.orch-infra.svc.cluster.local
   image:
+    repository: infra
+    tag: rmtaccessmgr-0.0.1
     pullPolicy: IfNotPresent
     registry:
       name: "wflikeit/"
@@ -136,6 +138,8 @@ remote-access-proxy:
   inventory:
     addr: inventory.orch-infra.svc.cluster.local
   image:
+    repository: infra
+    tag: rmtaccessproxy-0.0.1
     pullPolicy: IfNotPresent
     registry:
       name: "wflikeit/"

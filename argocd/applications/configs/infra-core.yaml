@@ -73,7 +73,7 @@ inventory:
   image:
     repository: infra
     tag: inventory-2.34.3-dev
-    pullPolicy: IfNotPresent
+    pullPolicy: Always # TODO: change to IfNotPresent after testing
     registry:
       name: "wflikeit/"
       imagePullSecrets: []

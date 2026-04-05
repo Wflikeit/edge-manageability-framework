@@ -71,7 +71,12 @@ apiv2:
 
 inventory:
   image:
+    repository: infra
+    tag: inventory-2.34.3-dev
     pullPolicy: IfNotPresent
+    registry:
+      name: "wflikeit/"
+      imagePullSecrets: []
   inventory:
     traceURL: "orchestrator-observability-opentelemetry-collector.orch-platform.svc:4318"
   postgresql:
